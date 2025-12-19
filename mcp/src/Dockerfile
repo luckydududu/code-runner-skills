@@ -42,9 +42,9 @@ RUN set -eux; \
 
 # 编译安装 ImageMagick 7.1.2-3
 RUN set -eux; \
-    # 下载 ImageMagick 7.1.2-3 源码
+    # 下载 ImageMagick 7.1.2-3 源码（使用 GitHub releases）
     cd /tmp && \
-    wget https://imagemagick.org/archive/ImageMagick-7.1.2-3.tar.xz && \
+    wget https://github.com/ImageMagick/ImageMagick/releases/download/7.1.2-3/ImageMagick-7.1.2-3.tar.xz && \
     tar -xf ImageMagick-7.1.2-3.tar.xz && \
     cd ImageMagick-7.1.2-3 && \
     # 配置编译选项（启用所有特性）
