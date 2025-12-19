@@ -12,7 +12,7 @@ tags:
   - yt-dlp
 ---
 
-# MCP Code Runner Skill
+# Code Runner MCP Skill
 
 ## 概述
 
