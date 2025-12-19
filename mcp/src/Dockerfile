@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive TZ=Asia/Singapore
 RUN set -eux; \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        curl ca-certificates bash wget tar xz-utils \
+        curl ca-certificates bash wget tar xz-utils unzip \
         python3 python3-pip \
         ffmpeg \
         vainfo intel-media-va-driver-non-free i965-va-driver \
@@ -40,13 +40,13 @@ RUN set -eux; \
         libltdl7 libltdl-dev; \
     rm -rf /var/lib/apt/lists/*
 
-# 编译安装 ImageMagick 7.1.2-3
+# 编译安装 ImageMagick 7.1.2-11
 RUN set -eux; \
-    # 下载 ImageMagick 7.1.2-3 源码（使用 GitHub releases）
+    # 下载 ImageMagick 7.1.2-11 源码（使用 GitHub tags）
     cd /tmp && \
-    wget https://github.com/ImageMagick/ImageMagick/releases/download/7.1.2-3/ImageMagick-7.1.2-3.tar.xz && \
-    tar -xf ImageMagick-7.1.2-3.tar.xz && \
-    cd ImageMagick-7.1.2-3 && \
+    wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.2-11.zip && \
+    unzip 7.1.2-11.zip && \
+    cd ImageMagick-7.1.2-11 && \
     # 配置编译选项（启用所有特性）
     ./configure \
         --prefix=/usr/local \
@@ -92,7 +92,7 @@ RUN set -eux; \
     ldconfig && \
     # 清理编译文件和工具
     cd / && \
-    rm -rf /tmp/ImageMagick-7.1.2-3* && \
+    rm -rf /tmp/ImageMagick-7.1.2-11* /tmp/7.1.2-11.zip && \
     apt-get remove -y build-essential pkg-config && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/* && \

@@ -177,7 +177,7 @@ AI 可以通过阅读 `skills/code-runner-mcp/` 目录下的描述文件来学�
 
 ### ImageMagick 配置
 
-ImageMagick 7.1.2-3 已从源码编译安装，启用全部特性。可执行文件位于 `/usr/local/bin/magick`。
+ImageMagick 7.1.2-11 已从源码编译安装，启用全部特性。可执行文件位于 `/usr/local/bin/magick`。
 
 详细说明: [ImageMagick 使用指南](skills/code-runner-mcp/imagemagick-guide.md)
 

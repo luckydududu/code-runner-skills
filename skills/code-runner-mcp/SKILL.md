@@ -43,7 +43,7 @@ tags:
 - **官方文档**: [yt-dlp GitHub](https://github.com/yt-dlp/yt-dlp)
 
 ### ImageMagick (magick)
-- **版本**: 7.1.2-3（从源码编译，启用全部特性）
+- **版本**: 7.1.2-11（从源码编译，启用全部特性）
 - **用途**: 图像处理、格式转换、尺寸调整、滤镜应用等
 - **官方文档**: [ImageMagick Documentation](https://imagemagick.org/script/command-line-processing.php)
 
@@ -404,7 +404,7 @@ ImageMagick 是一个强大的图像处理工具集，支持超过200种图像�
 ```
 
 ### ImageMagick 版本信息
-- **版本**: 7.1.2-3（从源码编译，启用全部特性）
+- **版本**: 7.1.2-11（从源码编译，启用全部特性）
 - **可执行文件**: `/usr/local/bin/magick`
 - **支持格式**: 超过200种图像格式
 - **主要功能**: 格式转换、尺寸调整、滤镜应用、图像合成等

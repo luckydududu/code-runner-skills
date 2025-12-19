@@ -2,7 +2,7 @@
 
 ## 版本信息
 
-- **当前版本**: ImageMagick 7.1.2-3 (源码编译)
+- **当前版本**: ImageMagick 7.1.2-11 (源码编译)
 - **编译方式**: 从官方源码编译，启用全部特性
 - **官方文档**: [ImageMagick Documentation](https://imagemagick.org/script/command-line-processing.php)
 - **官方网站**: [ImageMagick.org](https://imagemagick.org/)
