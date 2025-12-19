@@ -1,0 +1,66 @@
+
+x-env-common: &env-common
+  MCP_MODE: "http"                 # http | stdio
+  MCP_PORT: "8080"
+  DEPLOY_ROOT: "/data"             # 容器内固定部署根目录（请配合 volumes）
+  SHELL_WHITELIST: "ls,cat,echo,pwd,whoami,ffmpeg,magick,spotdl,yt-dlp,cp,mv,mkdir,touch,grep,sed,awk,sort,uniq,head,tail,wc,cut,tr,tar,gzip,gunzip,zip,unzip,curl,wget,ping,nslookup,df,du,free,ps,top,uptime,date,uname,find,which,type,file,stat,basename,dirname"
+  # 目录映射（可按需覆盖）
+  BUCKET_MAP: >
+    {
+     "Book":[".pdf",".epub",".mobi",".txt"],
+     "Image":[".png",".jpg",".jpeg",".gif",".webp",".tif",".tiff"],
+     "Movie":[".mp4",".mov",".mkv",".webm",".avi"],
+     "Music":[".mp3",".wav",".m4a",".aac",".flac",".ogg"],
+     "Shows":[".mp4",".mkv",".webm"]
+    }
+
+services:
+  mcp-runner:
+    image: mcp-code-runner:latest
+    # 使用 docker/build.sh 构建后的本地镜像
+    container_name: mcp-code-runner
+    environment: *env-common
+    ports:
+      - "8080:8080"                 # 对外暴露 HTTP/SSE
+    volumes:
+      - /lzcapp/document/lucky/HomeMedia:/data            # 宿主机媒体/产物目录 -> 容器 /data
+      - /lzcapp/document/lucky/Deploy/mcp-code-runner/config:/config
+      - /lzcapp/document/lucky/Deploy/mcp-code-runner/config/spotdl/config.json:/root/.spotdl/config.json
+    # 启用 VA-API（Intel 核显）时使用 profile: vaapi 启动
+    profiles: ["cpu"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl -sSf http://127.0.0.1:8080 >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # 可选：启用 VA-API（Intel QSV）的配置（与上面 mcp-runner 互斥运行）
+  mcp-runner-vaapi:
+    image: mcp-code-runner:latest
+    container_name: mcp-code-runner-vaapi
+    ports:
+      - "8080:8080"
+    volumes:
+      - /lzcapp/document/lucky/HomeMedia:/data
+      - /lzcapp/document/lucky/Deploy/mcp-code-runner/config:/config
+      - /lzcapp/document/lucky/Deploy/mcp-code-runner/config/spotdl/config.json:/root/.spotdl/config.json
+    # 将宿主机 /dev/dri 暴露给容器用于 VA-API
+    devices:
+      - "/dev/dri:/dev/dri"
+    # 某些发行版需要把进程加入 video 组；docker 里常按需添加
+    group_add:
+      - "video"
+    # Intel 新驱动（可按需注释掉）
+    environment:
+      LIBVA_DRIVER_NAME: "iHD"
+      <<: *env-common
+    profiles: ["vaapi"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl -sSf http://127.0.0.1:8080 >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
