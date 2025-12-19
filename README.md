@@ -15,18 +15,18 @@
 code-runner-mcp/
 ├── mcp/                    # MCP 服务器代码
 │   ├── src/
-│   │   └── server.py       # MCP 服务器主程序
-│   ├── config/             # 配置文件目录
-│   │   ├── spotdl/         # SpotDL 配置
-│   │   ├── yt-dlp/         # yt-dlp 配置
-│   │   └── *.md            # 工具使用指南
-│   ├── docker-compose.yaml # Docker Compose 配置
-│   └── build.sh            # 构建脚本
+│   │   ├── server.py       # MCP 服务器主程序
+│   │   ├── Dockerfile      # Docker 镜像构建文件
+│   │   └── config/
+│   │       └── spotdl/
+│   │           └── config.json  # SpotDL 配置文件
+│   └── docker-compose.yaml # Docker Compose 配置
 ├── skills/                  # Skills 描述文件
-│   ├── mcp-code-runner.md  # MCP 使用指南
-│   ├── spotdl-download.md  # SpotDL 下载技能
-│   ├── ytdlp-download.md  # yt-dlp 下载技能
-│   └── README.md           # Skills 说明
+│   └── code-runner-mcp/    # Skill 目录
+│       ├── SKILL.md        # Agent Skills 标准格式的技能描述
+│       ├── spotdl-guide.md # SpotDL 详细使用指南
+│       ├── yt-dlp-guide.md # yt-dlp 详细使用指南
+│       └── imagemagick-guide.md # ImageMagick 详细使用指南
 └── README.md               # 本文件
 ```
 
@@ -59,13 +59,14 @@ code-runner-mcp/
 ### 1. 构建 Docker 镜像
 
 ```bash
-cd mcp
-./build.sh
+cd mcp/src
+docker build -t mcp-code-runner:latest .
 ```
 
 ### 2. 启动服务
 
 ```bash
+cd mcp
 docker-compose up -d
 ```
 
@@ -77,55 +78,64 @@ MCP 服务器默认运行在 HTTP/SSE 模式，端口 8080。
 
 ### 通过 AI 使用
 
-AI 可以通过阅读 `skills/` 目录下的描述文件来学习如何使用 MCP 服务器：
+AI 可以通过阅读 `skills/code-runner-mcp/` 目录下的描述文件来学习如何使用 MCP 服务器：
 
 1. **下载音乐**:
-   - 参考 `skills/spotdl-download.md`
-   - 使用 `run_shell` 执行 `spotdl` 命令
+   - 参考 `skills/code-runner-mcp/SKILL.md` 中的 spotdl 部分
+   - 详细指南: `skills/code-runner-mcp/spotdl-guide.md`
+   - 使用 `run_shell` 执行 `spotdl --config` 命令
    - 使用 `deploy_artifacts` 部署文件
 
 2. **下载视频**:
-   - 参考 `skills/ytdlp-download.md`
+   - 参考 `skills/code-runner-mcp/SKILL.md` 中的 yt-dlp 部分
+   - 详细指南: `skills/code-runner-mcp/yt-dlp-guide.md`
    - 使用 `run_shell` 执行 `yt-dlp` 命令
    - 使用 `deploy_artifacts` 部署文件
+
+3. **图像处理**:
+   - 参考 `skills/code-runner-mcp/SKILL.md` 中的 ImageMagick 部分
+   - 详细指南: `skills/code-runner-mcp/imagemagick-guide.md`
+   - 使用 `run_shell` 执行 `magick` 命令
 
 ### 典型工作流程
 
 ```json
-// 1. 执行下载命令
+// 1. 执行下载命令（推荐使用 --config 参数）
 {
   "name": "run_shell",
   "arguments": {
     "cmd": "spotdl",
-    "args": ["歌曲链接或名称"]
+    "args": [
+      "--config",
+      "歌曲链接或搜索词"
+    ]
   }
 }
 
-// 2. 部署文件
+// 2. 检查下载结果
+{
+  "name": "list_files",
+  "arguments": {
+    "directory": "/temp/mcp-job-xxxxx"
+  }
+}
+
+// 3. 部署文件到 /data 目录
 {
   "name": "deploy_artifacts",
   "arguments": {
     "workdir": "/temp/mcp-job-xxxxx"
   }
 }
+
+// 4. 验证部署结果
+{
+  "name": "list_files",
+  "arguments": {
+    "directory": "/data/Music"
+  }
+}
 ```
-
-## 目录结构说明
-
-- `/data`: 最终部署产物目录，按文件类型分类
-  - `Music/`: 音乐文件
-  - `Movie/`: 视频文件
-  - `Image/`: 图像文件
-  - `Book/`: 电子书
-  - `Shows/`: 剧集
-  - `others/`: 其他类型文件
-
-- `/config`: 配置文件目录
-  - `spotdl/config.json`: SpotDL 配置
-  - `yt-dlp/`: yt-dlp 配置
-  - `*.md`: 工具使用指南
-
-- `/temp`: 临时文件目录（会被定期清理）
 
 ## 安全特性
 
@@ -136,30 +146,40 @@ AI 可以通过阅读 `skills/` 目录下的描述文件来学习如何使用 MC
 
 ## Skills 描述文件
 
-详细的技能描述文件位于 `skills/` 目录：
+详细的技能描述文件位于 `skills/code-runner-mcp/` 目录，符合 [Agent Skills](https://agentskills.io/home) 标准：
 
-- **[mcp-code-runner.md](skills/mcp-code-runner.md)**: MCP 服务器完整使用指南
-- **[spotdl-download.md](skills/spotdl-download.md)**: SpotDL 音乐下载技能
-- **[ytdlp-download.md](skills/ytdlp-download.md)**: yt-dlp 视频下载技能
+- **[SKILL.md](skills/code-runner-mcp/SKILL.md)**: Agent Skills 标准格式的技能描述文件，包含完整的 MCP 使用指南
+- **[spotdl-guide.md](skills/code-runner-mcp/spotdl-guide.md)**: SpotDL 详细使用指南（命令行参数、配置选项、Jellyfin 兼容性）
+- **[yt-dlp-guide.md](skills/code-runner-mcp/yt-dlp-guide.md)**: yt-dlp 详细使用指南（格式选择、字幕下载、高级功能）
+- **[imagemagick-guide.md](skills/code-runner-mcp/imagemagick-guide.md)**: ImageMagick 详细使用指南（图像处理、格式转换、滤镜应用）
 
 ## 配置说明
 
 ### SpotDL 配置
 
-配置文件位置: `/config/spotdl/config.json`
+配置文件位置: `/root/.spotdl/config.json`（容器内，已预配置）
 
 主要配置项：
 - 输出格式: `m4a`（高质量，Jellyfin 兼容）
 - 输出模板: `/data/Music/{artist}/{album}/{track-number} - {title}.{output-ext}`
 - 歌词生成: 启用 LRC 歌词文件
+- 版本: 4.4.3
 
-详细说明: [SpotDL 使用指南](mcp/config/spotdl-guide.md)
+**使用方式**：推荐使用 `spotdl --config` 参数来使用预配置的配置文件。
+
+详细说明: [SpotDL 使用指南](skills/code-runner-mcp/spotdl-guide.md)
 
 ### yt-dlp 配置
 
-支持通过配置文件或命令行参数设置。
+支持通过配置文件或命令行参数设置。yt-dlp 已明确安装，版本为最新。
 
-详细说明: [yt-dlp 使用指南](mcp/config/yt-dlp-guide.md)
+详细说明: [yt-dlp 使用指南](skills/code-runner-mcp/yt-dlp-guide.md)
+
+### ImageMagick 配置
+
+ImageMagick 7.1.2-3 已从源码编译安装，启用全部特性。可执行文件位于 `/usr/local/bin/magick`。
+
+详细说明: [ImageMagick 使用指南](skills/code-runner-mcp/imagemagick-guide.md)
 
 ## 开发
 
@@ -176,7 +196,7 @@ AI 可以通过阅读 `skills/` 目录下的描述文件来学习如何使用 MC
 
 ### 添加新命令到白名单
 
-修改 `docker-compose.yaml` 中的 `SHELL_WHITELIST` 环境变量。
+修改 `mcp/src/server.py` 中的 `DEFAULT_SHELL_WHITELIST` 变量，或通过环境变量 `SHELL_WHITELIST` 覆盖。
 
 ## 许可证
 
@@ -184,6 +204,11 @@ AI 可以通过阅读 `skills/` 目录下的描述文件来学习如何使用 MC
 
 ## 相关链接
 
+### 协议和标准
+- [Agent Skills 规范](https://agentskills.io/home)
 - [MCP 协议文档](https://modelcontextprotocol.io/)
+
+### 工具官方文档
 - [SpotDL 官方文档](https://spotdl.readthedocs.io/)
 - [yt-dlp 官方文档](https://github.com/yt-dlp/yt-dlp)
+- [ImageMagick 官方文档](https://imagemagick.org/script/command-line-processing.php)

@@ -101,7 +101,7 @@ RUN set -eux; \
 
 WORKDIR /app
 RUN python3 -m pip install --no-cache-dir --upgrade pip \
- && python3 -m pip install --no-cache-dir mcp spotdl==4.4.2
+ && python3 -m pip install --no-cache-dir mcp spotdl==4.4.3 yt-dlp
 COPY server.py /app/server.py
 
 # —— 默认 HTTP/SSE 模式 ——
