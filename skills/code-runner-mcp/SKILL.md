@@ -1,13 +1,16 @@
 ---
 name: code-runner-mcp
 description: 通过 MCP 服务器执行受限的命令行操作和代码，支持使用 spotdl 下载音乐和使用 yt-dlp 下载视频。所有文件存储在挂载到主机的 /data 目录中。
-version: 0.5.0
+version: 0.6.0
 author: dev@qiaobo.me
 tags:
   - mcp
   - command-execution
   - music-download
   - video-download
+  - music-metadata
+  - jellyfin
+  - musicbrainz
   - spotdl
   - yt-dlp
 ---
@@ -22,6 +25,7 @@ tags:
 - **代码执行**：支持执行 Python3 代码
 - **音乐下载**：使用 spotdl 从 Spotify 和 YouTube Music 下载音乐
 - **视频下载**：使用 yt-dlp 从 YouTube 等1000+平台下载视频
+- **音乐元数据管理**：自动生成 Jellyfin 兼容的 NFO 文件，包含 MusicBrainz ID
 - **文件管理**：自动将下载的文件分类并存储到 `/data` 目录（挂载到主机）
 
 ## 前置条件
@@ -163,6 +167,62 @@ tags:
 **参数**：
 - `file` (必需): 配置文件相对于 `/config` 目录的路径
 
+### 8. generate_music_nfo
+为音乐专辑生成 Jellyfin 兼容的 NFO 文件。自动从音乐文件中提取元数据，查询 MusicBrainz API 获取 MusicBrainz ID，并生成包含完整元数据的 NFO 文件。
+
+**参数**：
+- `file` (可选): 单个音乐文件路径（必须在 `/data` 目录下）。NFO 文件将生成在该文件所在的专辑目录中
+- `directory` (可选): 包含音乐文件的目录路径（必须在 `/data` 目录下）。NFO 文件将生成在该目录中
+
+**注意**：`file` 和 `directory` 参数必须提供其中一个，不能同时提供。
+
+**功能说明**：
+- 自动从音乐文件中提取元数据（标题、艺术家、专辑、日期等）
+- 查询 MusicBrainz API 获取 MusicBrainz ID（专辑 ID、专辑艺术家 ID 等）
+- 如果 MusicBrainz 查询失败，使用文件中的元数据作为备选
+- 生成符合 Jellyfin 格式的 XML NFO 文件（`album.nfo`）
+- 支持多种音频格式：MP3、FLAC、M4A、AAC、OGG、WAV
+
+**使用示例 - 处理单个文件**：
+```json
+{
+  "name": "generate_music_nfo",
+  "arguments": {
+    "file": "/data/Music/Artist/Album/01 - Song.m4a"
+  }
+}
+```
+
+**使用示例 - 批量处理目录**：
+```json
+{
+  "name": "generate_music_nfo",
+  "arguments": {
+    "directory": "/data/Music/Artist/Album"
+  }
+}
+```
+
+**返回结果**：
+```json
+{
+  "success": true,
+  "nfo_file": "/data/Music/Artist/Album/album.nfo",
+  "album_metadata": {
+    "title": "Album Title",
+    "artist": "Album Artist",
+    "date": "2024",
+    "musicbrainz_albumid": "xxx-xxx-xxx",
+    "musicbrainz_albumartistid": "yyy-yyy-yyy"
+  },
+  "processed_files": [
+    "/data/Music/Artist/Album/01 - Song.m4a",
+    "/data/Music/Artist/Album/02 - Song2.m4a"
+  ],
+  "errors": null
+}
+```
+
 ## 使用 spotdl 下载音乐
 
 ### 基本用法
@@ -280,6 +340,18 @@ tags:
 }
 ```
 
+5. **生成 NFO 文件（可选，用于 Jellyfin 元数据刮削）**：
+```json
+{
+  "name": "generate_music_nfo",
+  "arguments": {
+    "directory": "/data/Music/Artist/Album"
+  }
+}
+```
+
+这将生成 `album.nfo` 文件，包含完整的专辑元数据和 MusicBrainz ID，Jellyfin 可以自动识别并使用这些信息进行元数据刮削。
+
 ## 使用 yt-dlp 下载视频
 
 ### 基本用法
@@ -352,6 +424,111 @@ tags:
 2. 使用 `list_files` 检查下载结果
 3. 使用 `deploy_artifacts` 部署文件
 4. 使用 `list_files` 验证部署结果
+
+## 生成音乐 NFO 文件（Jellyfin 元数据）
+
+### 功能说明
+
+`generate_music_nfo` 工具可以为音乐专辑自动生成 Jellyfin 兼容的 NFO 文件。这个功能类似于 Jellyfin 的元数据刮削，但可以预先生成 NFO 文件，确保 Jellyfin 能够正确识别音乐文件的元数据。
+
+### 主要特性
+
+- **自动元数据提取**：从音乐文件中提取标题、艺术家、专辑、日期等信息
+- **MusicBrainz 集成**：自动查询 MusicBrainz API 获取 MusicBrainz ID
+  - 专辑 MusicBrainz ID (`musicbrainzalbumid`)
+  - 专辑艺术家 MusicBrainz ID (`musicbrainzalbumartistid`)
+- **降级处理**：如果 MusicBrainz 查询失败，使用文件中的元数据作为备选
+- **Jellyfin 兼容**：生成的 NFO 文件完全符合 Jellyfin 的格式要求
+- **批量处理**：支持处理整个专辑目录中的所有音乐文件
+
+### 基本用法
+
+**为单个音乐文件所在的专辑生成 NFO**：
+```json
+{
+  "name": "generate_music_nfo",
+  "arguments": {
+    "file": "/data/Music/Artist/Album/01 - Song.m4a"
+  }
+}
+```
+
+**为整个专辑目录生成 NFO**：
+```json
+{
+  "name": "generate_music_nfo",
+  "arguments": {
+    "directory": "/data/Music/Artist/Album"
+  }
+}
+```
+
+### NFO 文件格式
+
+生成的 `album.nfo` 文件包含以下信息：
+- `<title>`: 专辑标题
+- `<artist>`: 专辑艺术家
+- `<musicbrainzalbumid>`: 专辑 MusicBrainz ID
+- `<musicbrainzalbumartistid>`: 专辑艺术家 MusicBrainz ID
+- `<releasedate>`: 发行日期
+
+### 工作流程示例
+
+1. **下载音乐**（使用 spotdl）：
+```json
+{
+  "name": "run_shell",
+  "arguments": {
+    "cmd": "spotdl",
+    "args": ["--config", "歌曲链接"]
+  }
+}
+```
+
+2. **部署文件到 /data**：
+```json
+{
+  "name": "deploy_artifacts",
+  "arguments": {
+    "workdir": "/temp/mcp-job-xxxxx"
+  }
+}
+```
+
+3. **生成 NFO 文件**：
+```json
+{
+  "name": "generate_music_nfo",
+  "arguments": {
+    "directory": "/data/Music/Artist/Album"
+  }
+}
+```
+
+4. **验证 NFO 文件**：
+```json
+{
+  "name": "check_file",
+  "arguments": {
+    "file": "/data/Music/Artist/Album/album.nfo"
+  }
+}
+```
+
+### 技术细节
+
+- **支持的音频格式**：MP3、FLAC、M4A、AAC、OGG、WAV
+- **元数据提取**：使用 `mutagen` 库读取音频文件标签
+- **MusicBrainz API**：使用 `musicbrainzngs` 库查询 MusicBrainz 数据库
+- **NFO 文件位置**：生成在专辑目录下，文件名为 `album.nfo`
+- **错误处理**：如果某个文件处理失败，会继续处理其他文件，并在返回结果中报告错误
+
+### 注意事项
+
+- NFO 文件必须与音乐文件在同一目录下，Jellyfin 才能正确识别
+- MusicBrainz API 有访问频率限制，批量处理大量专辑时请注意
+- 如果音乐文件的元数据不完整，可能无法在 MusicBrainz 中找到匹配项
+- 生成的 NFO 文件会覆盖同名的现有文件
 
 ## 使用 ImageMagick (magick) 处理图像
 
@@ -428,7 +605,8 @@ ImageMagick 是一个强大的图像处理工具集，支持超过200种图像�
 └── 艺术家名/
     └── 专辑名/
         ├── 01 - 歌曲A.m4a
-        └── 02 - 歌曲B.m4a
+        ├── 02 - 歌曲B.m4a
+        └── album.nfo  (使用 generate_music_nfo 生成)
 ```
 
 视频文件会存储在：

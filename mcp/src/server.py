@@ -16,6 +16,12 @@ import mcp.types as types
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
+try:
+    import music_nfo_generator
+    MUSICBRAINZ_AVAILABLE = music_nfo_generator.is_available()
+except ImportError:
+    MUSICBRAINZ_AVAILABLE = False
+
 MODE = (os.getenv("MCP_MODE") or "http").lower()
 PORT = int(os.getenv("MCP_PORT") or 8080)
 
@@ -328,6 +334,70 @@ async def handle_check_file(arguments: dict[str, Any]) -> list[types.ContentBloc
         return to_content({"error": f"Failed to check file: {str(e)}"})
 
 
+async def handle_generate_music_nfo(arguments: dict[str, Any]) -> list[types.ContentBlock]:
+    """生成音乐文件的 NFO 文件"""
+    if not MUSICBRAINZ_AVAILABLE:
+        return to_content({"error": "mutagen and musicbrainzngs libraries are not available"})
+    
+    file_path = arguments.get("file")
+    directory_path = arguments.get("directory")
+    
+    # 验证参数
+    if not file_path and not directory_path:
+        raise ValueError("Either 'file' or 'directory' must be provided")
+    if file_path and directory_path:
+        raise ValueError("Cannot specify both 'file' and 'directory'")
+    
+    # 确定要处理的路径
+    if file_path:
+        if not isinstance(file_path, str):
+            raise ValueError("file must be provided as a string")
+        target_path = Path(file_path).resolve()
+        if not target_path.is_file():
+            return to_content({"error": f"File not found: {file_path}"})
+        # 处理单个文件所在的专辑目录
+        album_dir = target_path.parent
+        music_files = [target_path]
+    else:
+        if not isinstance(directory_path, str):
+            raise ValueError("directory must be provided as a string")
+        target_path = Path(directory_path).resolve()
+        if not target_path.is_dir():
+            return to_content({"error": f"Directory not found: {directory_path}"})
+        album_dir = target_path
+        # 扫描目录下的所有音乐文件
+        music_extensions = {".mp3", ".flac", ".m4a", ".aac", ".ogg", ".wav"}
+        music_files = [f for f in target_path.iterdir() if f.is_file() and f.suffix.lower() in music_extensions]
+    
+    # 验证路径在 /data 目录下
+    if not str(target_path).startswith(str(DEPLOY_ROOT.resolve()) + os.sep) and str(target_path) != str(DEPLOY_ROOT.resolve()):
+        return to_content({"error": f"Path must be under /data directory"})
+    
+    if not music_files:
+        return to_content({"error": "No music files found"})
+    
+    # 使用 music_nfo_generator 模块处理音乐文件
+    try:
+        album_metadata, processed_files, errors = music_nfo_generator.process_music_files(music_files, album_dir)
+        
+        if not album_metadata:
+            return to_content({"error": "Failed to extract metadata from any music files", "errors": errors})
+        
+        # 生成 NFO 文件
+        nfo_path = album_dir / "album.nfo"
+        music_nfo_generator.generate_nfo_file(album_metadata, nfo_path)
+        
+        return to_content({
+            "success": True,
+            "nfo_file": str(nfo_path),
+            "album_metadata": album_metadata,
+            "processed_files": processed_files,
+            "errors": errors if errors else None
+        })
+    except Exception as e:
+        return to_content({"error": f"Failed to generate NFO file: {str(e)}"})
+
+
 app = Server("mcp-code-runner", version="0.5.0")
 
 
@@ -413,6 +483,18 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["file"],
             },
         ),
+        types.Tool(
+            name="generate_music_nfo",
+            description="Generate Jellyfin-compatible NFO file for music albums. Extracts metadata from music files and queries MusicBrainz for IDs. Creates album.nfo in the album directory.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "Path to a single music file (must be under /data). NFO will be generated in the file's parent directory."},
+                    "directory": {"type": "string", "description": "Path to directory containing music files (must be under /data). NFO will be generated in this directory."},
+                },
+                "required": [],
+            },
+        ),
     ]
 
 
@@ -434,6 +516,8 @@ async def call_tool(name: str, arguments: dict[str, Any] | None) -> list[types.C
             return await handle_list_files(arguments)
         if name == "check_file":
             return await handle_check_file(arguments)
+        if name == "generate_music_nfo":
+            return await handle_generate_music_nfo(arguments)
         raise ValueError(f"Unknown tool: {name}")
     except Exception as exc:  # surfacing any error as JSON content
         return to_content({"error": str(exc)})
